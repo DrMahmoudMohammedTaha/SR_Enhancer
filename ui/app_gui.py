@@ -152,6 +152,12 @@ class VideoEnhancementApp:
         self.object_tracking_cb = tk.Checkbutton(cb_frame1, text="Track Objects", variable=self.object_tracking_var, font=self.my_font)
         self.object_tracking_cb.pack(side=tk.LEFT, padx=25)
         
+        # Add Histogram Equalization Checkbox
+        self.histogram_equalization_var = tk.BooleanVar()
+        self.histogram_equalization_cb = tk.Checkbutton(cb_frame1, text="Histogram Equ.",
+                                                        variable=self.histogram_equalization_var, font=self.my_font)
+        self.histogram_equalization_cb.pack(side=tk.LEFT, padx=20)
+
         # Second row of checkboxes
         cb_frame2 = tk.Frame(options_frame)
         cb_frame2.pack(fill=tk.X, pady=5)
@@ -553,21 +559,24 @@ class VideoEnhancementApp:
         # Create a copy to avoid modifying the original
         enhanced = frame.copy()
 
+        # Lighting Enhancement
+        enhanced = self.update_enhanced_contrast(frame=enhanced.copy())
+
         # Color Enhancement (Auto Tone)
         if self.color_enhancement_var.get():
             if len(enhanced.shape) == 3:  # Only apply to color images
                 enhanced = auto_tone_image(enhanced)
 
         # Sharpen Enhancement
-        enhanced = apply_sharpening(frame,self.sharpen_type1_var.get(),self.sharpen_type2_var.get(),self.sharpen_type3_var.get())
+        enhanced = apply_sharpening(enhanced,self.sharpen_type1_var.get(),self.sharpen_type2_var.get(),self.sharpen_type3_var.get())
                 
         # AI model enhancement
         if self.ai_model_var.get() and self.ai_model_loaded:
             enhanced = apply_ai_model(enhanced)
         
-        # Lighting Enhancement
-        enhanced = self.update_enhanced_contrast(frame=enhanced)
-
+        # Histogram Equalization
+        if self.histogram_equalization_var.get():
+            enhanced = self.histogram_equalization(enhanced)        
         # Object tracking - apply this last so tracking is visible
         if self.object_tracking_var.get():
             enhanced = self.track_objects(enhanced)
@@ -968,3 +977,87 @@ class VideoEnhancementApp:
         if self.current_frame is not None:
             # Display the original frame on the enhanced canvas
             self.display_frame_on_canvas(self.current_frame, self.enhanced_canvas, is_enhanced=False)
+
+    def histogram_equalization(self, frame):
+        """Perform histogram equalization on the input frame"""
+        # Check if the image is grayscale or color
+        if len(frame.shape) == 2:  # Grayscale image
+            equalized = cv2.equalizeHist(frame)
+        else:  # Color image
+            # Convert to YUV color space
+            yuv = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV)
+            # Equalize the Y (luminance) channel
+            yuv[:, :, 0] = cv2.equalizeHist(yuv[:, :, 0])
+            # Convert back to BGR color space
+            equalized = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
+        
+        return equalized
+    
+    # def histogram_equalization(self, frame):
+    #     """
+    #     Perform histogram equalization on the input image.
+    #     Supports both grayscale and BGR color images.
+    #     """
+    #     if frame.ndim == 2 or (frame.ndim == 3 and frame.shape[2] == 1):  # Grayscale
+    #         equalized = cv2.equalizeHist(frame)
+    #     elif frame.ndim == 3 and frame.shape[2] == 3:  # Color image
+    #         yuv = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV)
+    #         yuv[:, :, 0] = cv2.equalizeHist(yuv[:, :, 0])
+    #         equalized = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
+    #     else:
+    #         raise ValueError("Unsupported image format for histogram equalization.")
+
+    #     return equalized
+    
+
+    # def histogram_equalization(self, frame):
+    #     """
+    #     Convert input image to grayscale (if not already), and apply histogram equalization.
+    #     """
+    #     # Convert to grayscale if it's a color image
+    #     if frame.ndim == 3 and frame.shape[2] == 3:
+    #         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+    #     print("Applying histogram equalization")
+    #     # Apply histogram equalization
+    #     equalized = cv2.equalizeHist(frame)
+    #     cv2.imwrite("debug_equalized_image.jpg", equalized)
+        
+    #     return equalized
+
+
+
+    # def histogram_equalization_2(self, frame):
+    #     """
+    #     Applies histogram equalization to a colored image.
+
+    #     Args:
+    #         image_path: The path to the input image file.
+
+    #     Returns:
+    #         The processed image as a NumPy array, or None if an error occurs.
+    #     """
+    #     try:
+    #         # Load the image using OpenCV
+    #         img = frame.copy()
+
+    #         # Convert the image to YCrCb color space
+    #         img_ycrcb = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
+
+    #         # Split the image into its Y, Cr, and Cb channels
+    #         y, cr, cb = cv2.split(img_ycrcb)
+
+    #         # Apply histogram equalization to the Y channel
+    #         y_eq = cv2.equalizeHist(y)
+
+    #         # Merge the equalized Y channel with the original Cr and Cb channels
+    #         img_ycrcb_eq = cv2.merge((y_eq, cr, cb))
+
+    #         # Convert the image back to BGR color space
+    #         img_eq = cv2.cvtColor(img_ycrcb_eq, cv2.COLOR_YCrCb2BGR)
+
+    #         return img_eq
+
+    #     except Exception as e:
+    #         print(f"An error occurred: {e}")
+    #         return None
