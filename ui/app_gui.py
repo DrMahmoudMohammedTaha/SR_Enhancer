@@ -173,7 +173,7 @@ class VideoEnhancementApp:
         button_frame.pack(fill=tk.X, pady=10)
         
         # Create taller 3D-looking buttons
-        load_button = tk.Button(button_frame, text="Load Video", command=self.load_video,
+        load_button = tk.Button(button_frame, text="Load", command=self.load_video,
                                bg="#d0d0d0", relief=tk.RAISED, height=3, width=12, font=self.my_font)
         load_button.pack(side=tk.LEFT, padx=10)
         
@@ -219,70 +219,166 @@ class VideoEnhancementApp:
         # Bind the escape key to exit full screen
         self.root.bind("<Escape>", lambda event: self.exit_application())
         
+    # def load_video(self):
+    #     """Open file dialog to choose a video file"""
+    #     self.video_path = filedialog.askopenfilename(
+    #         title="Select Video File",
+    #         filetypes=[
+    #             ("Video files", "*.mp4 *.avi *.mov *.mkv"),
+    #             ("All files", "*.*")
+    #         ]
+    #     )
+        
+    #     if self.video_path:
+    #         self.cap = cv2.VideoCapture(self.video_path)
+    #         if self.cap.isOpened():
+    #             self.start_button.config(state=tk.NORMAL)
+    #             self.export_button.config(state=tk.NORMAL)
+    #             # Read the first frame and display it
+    #             ret, frame = self.cap.read()
+    #             if ret:
+    #                 self.display_frame_on_canvas(frame, self.original_canvas)
+    #                 enhanced = self.enhance_frame(frame)
+    #                 self.display_frame_on_canvas(enhanced, self.enhanced_canvas, is_enhanced=True)
+    #                 # Get total frames
+    #                 self.frame_count = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    #                 # Reset position
+    #                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    #                 # Initialize progress bars
+    #                 self.original_progress["maximum"] = self.frame_count
+    #                 self.enhanced_progress["maximum"] = self.frame_count
+    #                 self.original_progress["value"] = 0
+    #                 self.enhanced_progress["value"] = 0
+    #                 # Reset object tracking variables
+    #                 self.bg_subtractor = cv2.bgsegm.createBackgroundSubtractorMOG()
+    #                 self.object_ids = {}
+    #                 self.next_id = 1
+    #                 self.detec = []
+    #         else:
+    #             tk.messagebox.showerror("Error", "Could not open the video file.")
+
     def load_video(self):
-        """Open file dialog to choose a video file"""
+        """Open file dialog to choose a video or image file"""
         self.video_path = filedialog.askopenfilename(
-            title="Select Video File",
+            title="Select Video or Image File",
             filetypes=[
-                ("Video files", "*.mp4 *.avi *.mov *.mkv"),
+                ("Video and Image files", "*.mp4 *.avi *.mov *.mkv *.jpg *.jpeg *.png *.bmp"),
                 ("All files", "*.*")
             ]
         )
         
         if self.video_path:
-            self.cap = cv2.VideoCapture(self.video_path)
-            if self.cap.isOpened():
-                self.start_button.config(state=tk.NORMAL)
-                self.export_button.config(state=tk.NORMAL)
-                # Read the first frame and display it
-                ret, frame = self.cap.read()
-                if ret:
-                    self.display_frame_on_canvas(frame, self.original_canvas)
-                    enhanced = self.enhance_frame(frame)
-                    self.display_frame_on_canvas(enhanced, self.enhanced_canvas, is_enhanced=True)
-                    # Get total frames
-                    self.frame_count = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                    # Reset position
+            # Check if the selected file is an image
+            if self.video_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                # Load and display the image
+                image = cv2.imread(self.video_path)
+                if image is not None:
+                    self.display_frame_on_canvas(image, self.original_canvas)
+                    enhanced_image = self.enhance_frame(image)
+                    self.display_frame_on_canvas(enhanced_image, self.enhanced_canvas, is_enhanced=True)
+                    self.start_button.config(state=tk.NORMAL)
+                    self.export_button.config(state=tk.NORMAL)
+                    self.object_tracking_cb.config(state=tk.DISABLED)
+                else:
+                    tk.messagebox.showerror("Error", "Could not load the image file.")
+            else:
+                # Assume it's a video and handle it as before
+                self.cap = cv2.VideoCapture(self.video_path)
+                if self.cap.isOpened():
+                    self.start_button.config(state=tk.NORMAL)
+                    self.export_button.config(state=tk.NORMAL)
+                    self.object_tracking_cb.config(state=tk.NORMAL)
+                    # Read the first frame and display it
+                    ret, frame = self.cap.read()
+                    if ret:
+                        self.display_frame_on_canvas(frame, self.original_canvas)
+                        enhanced = self.enhance_frame(frame)
+                        self.display_frame_on_canvas(enhanced, self.enhanced_canvas, is_enhanced=True)
+                        # Get total frames
+                        self.frame_count = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                        # Reset position
+                        self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        # Initialize progress bars
+                        self.original_progress["maximum"] = self.frame_count
+                        self.enhanced_progress["maximum"] = self.frame_count
+                        self.original_progress["value"] = 0
+                        self.enhanced_progress["value"] = 0
+                        # Reset object tracking variables
+                        self.bg_subtractor = cv2.bgsegm.createBackgroundSubtractorMOG()
+                        self.object_ids = {}
+                        self.next_id = 1
+                        self.detec = []
+                else:
+                    tk.messagebox.showerror("Error", "Could not open the video file.")
+
+    # def start_video(self):
+    #     """Start playing the videos"""
+    #     if self.cap and not self.is_running:
+    #         self.is_running = True
+    #         self.start_button.config(state=tk.DISABLED)
+    #         self.stop_button.config(state=tk.NORMAL)
+            
+    #         # Reset video to the beginning
+    #         self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    #         self.current_frame_number = 0
+            
+    #         # Reset progress bars
+    #         self.original_progress["value"] = 0
+    #         self.enhanced_progress["value"] = 0
+            
+    #         # Reset object tracking variables
+    #         self.bg_subtractor = cv2.bgsegm.createBackgroundSubtractorMOG()
+    #         self.object_ids = {}
+    #         self.next_id = 1
+    #         self.detec = []
+            
+    #         # Start processing in a separate thread
+    #         self.processing_thread = threading.Thread(target=self.process_video)
+    #         self.processing_thread.daemon = True
+    #         self.processing_thread.start()
+
+    def start_video(self):
+        """Start processing the selected file (video or image)"""
+        if self.video_path:
+            # Check if the selected file is an image
+            if self.video_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                # Load the image
+                image = cv2.imread(self.video_path)
+                if image is not None:
+                    # Apply enhancements
+                    enhanced_image = self.enhance_frame(image)
+                    
+                    # Display original and enhanced images
+                    self.display_frame_on_canvas(image, self.original_canvas)
+                    self.display_frame_on_canvas(enhanced_image, self.enhanced_canvas, is_enhanced=True)
+                else:
+                    tk.messagebox.showerror("Error", "Could not load the image file.")
+            else:
+                # Proceed with video processing as before
+                if not self.is_running:
+                    self.is_running = True
+                    self.start_button.config(state=tk.DISABLED)
+                    self.stop_button.config(state=tk.NORMAL)
+                    
+                    # Reset video to the beginning
                     self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                    # Initialize progress bars
-                    self.original_progress["maximum"] = self.frame_count
-                    self.enhanced_progress["maximum"] = self.frame_count
+                    self.current_frame_number = 0
+                    
+                    # Reset progress bars
                     self.original_progress["value"] = 0
                     self.enhanced_progress["value"] = 0
+                    
                     # Reset object tracking variables
                     self.bg_subtractor = cv2.bgsegm.createBackgroundSubtractorMOG()
                     self.object_ids = {}
                     self.next_id = 1
                     self.detec = []
-            else:
-                tk.messagebox.showerror("Error", "Could not open the video file.")
-    
-    def start_video(self):
-        """Start playing the videos"""
-        if self.cap and not self.is_running:
-            self.is_running = True
-            self.start_button.config(state=tk.DISABLED)
-            self.stop_button.config(state=tk.NORMAL)
-            
-            # Reset video to the beginning
-            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            self.current_frame_number = 0
-            
-            # Reset progress bars
-            self.original_progress["value"] = 0
-            self.enhanced_progress["value"] = 0
-            
-            # Reset object tracking variables
-            self.bg_subtractor = cv2.bgsegm.createBackgroundSubtractorMOG()
-            self.object_ids = {}
-            self.next_id = 1
-            self.detec = []
-            
-            # Start processing in a separate thread
-            self.processing_thread = threading.Thread(target=self.process_video)
-            self.processing_thread.daemon = True
-            self.processing_thread.start()
-    
+                    
+                    # Start processing in a separate thread
+                    self.processing_thread = threading.Thread(target=self.process_video)
+                    self.processing_thread.daemon = True
+                    self.processing_thread.start()
+                        
     def stop_video(self):
         """Stop playing the videos"""
         self.is_running = False
@@ -496,41 +592,112 @@ class VideoEnhancementApp:
         canvas.create_image(canvas_width//2, canvas_height//2, image=photo, anchor=tk.CENTER)
         canvas.image = photo  # Keep a reference to prevent garbage collection
 
+    # def export_video(self):
+    #     """Export the enhanced video with selected enhancements"""
+    #     if not self.video_path or self.is_exporting:
+    #         return
+        
+    #     # Ask user for save location
+    #     output_path = filedialog.asksaveasfilename(
+    #         title="Save Enhanced Video",
+    #         defaultextension=".mp4",
+    #         filetypes=[
+    #             ("MP4 video", "*.mp4"),
+    #             ("AVI video", "*.avi"),
+    #             ("MKV video", "*.mkv"),
+    #             ("All files", "*.*")
+    #         ]
+    #     )
+        
+    #     if not output_path:
+    #         return
+        
+    #     # Disable buttons during export
+    #     self.start_button.config(state=tk.DISABLED)
+    #     self.stop_button.config(state=tk.DISABLED)
+    #     self.export_button.config(state=tk.DISABLED)
+        
+    #     # Stop playback if running
+    #     if self.is_running:
+    #         self.stop_video()
+        
+    #     # Start export in separate thread
+    #     self.is_exporting = True
+    #     self.export_thread = threading.Thread(target=self.process_export, args=(output_path,))
+    #     self.export_thread.daemon = True
+    #     self.export_thread.start()
+
     def export_video(self):
-        """Export the enhanced video with selected enhancements"""
-        if not self.video_path or self.is_exporting:
+        """Export the enhanced video or image with selected enhancements"""
+        if not self.video_path:
+            tk.messagebox.showerror("Error", "No file loaded to export.")
             return
+
+        # Check if the selected file is an image
+        if self.video_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+            # Ask user for save location
+            output_path = filedialog.asksaveasfilename(
+                title="Save Enhanced Image",
+                defaultextension=".png",
+                filetypes=[
+                    ("PNG image", "*.png"),
+                    ("JPEG image", "*.jpg *.jpeg"),
+                    ("BMP image", "*.bmp"),
+                    ("All files", "*.*")
+                ]
+            )
+            
+            if not output_path:
+                return
+            
+            # Load the image
+            image = cv2.imread(self.video_path)
+            if image is not None:
+                # Apply enhancements
+                enhanced_image = self.enhance_frame(image)
+                
+                # Save the enhanced image
+                cv2.imwrite(output_path, enhanced_image)
+                tk.messagebox.showinfo("Export Complete", f"Enhanced image saved to:\n{output_path}")
+            else:
+                tk.messagebox.showerror("Error", "Failed to load the image for export.")
         
-        # Ask user for save location
-        output_path = filedialog.asksaveasfilename(
-            title="Save Enhanced Video",
-            defaultextension=".mp4",
-            filetypes=[
-                ("MP4 video", "*.mp4"),
-                ("AVI video", "*.avi"),
-                ("MKV video", "*.mkv"),
-                ("All files", "*.*")
-            ]
-        )
-        
-        if not output_path:
-            return
-        
-        # Disable buttons during export
-        self.start_button.config(state=tk.DISABLED)
-        self.stop_button.config(state=tk.DISABLED)
-        self.export_button.config(state=tk.DISABLED)
-        
-        # Stop playback if running
-        if self.is_running:
-            self.stop_video()
-        
-        # Start export in separate thread
-        self.is_exporting = True
-        self.export_thread = threading.Thread(target=self.process_export, args=(output_path,))
-        self.export_thread.daemon = True
-        self.export_thread.start()
-    
+        else:
+            # Proceed with exporting video as before
+            if self.is_exporting:
+                tk.messagebox.showinfo("Export in Progress", "An export is already in progress.")
+                return
+            
+            # Ask user for save location
+            output_path = filedialog.asksaveasfilename(
+                title="Save Enhanced Video",
+                defaultextension=".mp4",
+                filetypes=[
+                    ("MP4 video", "*.mp4"),
+                    ("AVI video", "*.avi"),
+                    ("MKV video", "*.mkv"),
+                    ("All files", "*.*")
+                ]
+            )
+            
+            if not output_path:
+                return
+            
+            # Disable buttons during export
+            self.start_button.config(state=tk.DISABLED)
+            self.stop_button.config(state=tk.DISABLED)
+            self.export_button.config(state=tk.DISABLED)
+            
+            # Stop playback if running
+            if self.is_running:
+                self.stop_video()
+            
+            # Start export in separate thread
+            self.is_exporting = True
+            self.export_thread = threading.Thread(target=self.process_export, args=(output_path,))
+            self.export_thread.daemon = True
+            self.export_thread.start()
+                
     def toggle_metrics(self):
         """Toggle metrics display on/off"""
         self.show_metrics = not self.show_metrics
