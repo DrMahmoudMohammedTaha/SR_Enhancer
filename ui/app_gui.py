@@ -306,11 +306,15 @@ class VideoEnhancementApp:
             ]
         )
         
+        self.video_path = os.path.abspath(self.video_path)
+
         if self.video_path:
             # Check if the selected file is an image
             if self.video_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
                 # Load and display the image
-                image = cv2.imread(self.video_path)
+                # image = cv2.imread(self.video_path)
+                image = cv2.imdecode(np.fromfile(self.video_path, dtype=np.uint8), cv2.IMREAD_COLOR)
+
                 if image is not None:
                     self.display_frame_on_canvas(image, self.original_canvas)
                     enhanced_image = self.enhance_frame(image)
@@ -379,11 +383,13 @@ class VideoEnhancementApp:
 
     def start_video(self):
         """Start processing the selected file (video or image)"""
+
         if self.video_path:
             # Check if the selected file is an image
             if self.video_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
                 # Load the image
-                image = cv2.imread(self.video_path)
+                # image = cv2.imread(self.video_path)
+                image = cv2.imdecode(np.fromfile(self.video_path, dtype=np.uint8), cv2.IMREAD_COLOR)
                 if image is not None:
                     # Apply enhancements
 
@@ -698,13 +704,15 @@ class VideoEnhancementApp:
                 return
             
             # Load the image
-            image = cv2.imread(self.video_path)
+            image = cv2.imdecode(np.fromfile(self.video_path, dtype=np.uint8), cv2.IMREAD_COLOR)
+            # image = cv2.imread(self.video_path)
             if image is not None:
                 # Apply enhancements
                 enhanced_image = self.enhance_frame(image)
                 
                 # Save the enhanced image
-                cv2.imwrite(output_path, enhanced_image)
+                # cv2.imwrite(output_path, enhanced_image)
+                cv2.imencode('.png', enhanced_image)[1].tofile(output_path)
                 tk.messagebox.showinfo("Export Complete", f"Enhanced image saved to:\n{output_path}")
             else:
                 tk.messagebox.showerror("Error", "Failed to load the image for export.")
@@ -972,6 +980,7 @@ class VideoEnhancementApp:
         self.sharpen_type1_var.set(False)
         self.sharpen_type2_var.set(False)
         self.sharpen_type3_var.set(False)
+        self.histogram_equalization_var.set(False)
 
         # Reset the enhanced image to the original frame with no enhancements
         if self.current_frame is not None:
