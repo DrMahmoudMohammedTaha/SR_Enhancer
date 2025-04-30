@@ -71,7 +71,7 @@ class VideoEnhancementApp:
         
         # Create main frame
         main_frame = tk.Frame(root)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
         
         # Add exit button to top right corner
         exit_button = tk.Button(root, text="X", command=self.exit_application,
@@ -85,7 +85,7 @@ class VideoEnhancementApp:
         
         # Left panel for original video
         left_panel = tk.Frame(self.display_frame, bd=2, relief=tk.SUNKEN)
-        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=5)
         
         video_label1 = tk.Label(left_panel, text="Source Video", font=self.my_font)
         video_label1.pack(pady=5)
@@ -106,7 +106,7 @@ class VideoEnhancementApp:
         
         # Right panel for enhanced video
         right_panel = tk.Frame(self.display_frame, bd=2, relief=tk.SUNKEN)
-        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=5)
         
         video_label2 = tk.Label(right_panel, text="Enhanced Video", font=self.my_font)
         video_label2.pack(pady=5)
@@ -127,11 +127,11 @@ class VideoEnhancementApp:
         
         # Control frame
         control_frame = tk.Frame(main_frame)
-        control_frame.pack(fill=tk.X, pady=10)
+        control_frame.pack(fill=tk.X, pady=5)
         
         # Enhancement options frame
         options_frame = tk.Frame(control_frame)
-        options_frame.pack(fill=tk.X, pady=10)
+        options_frame.pack(fill=tk.X, pady=5)
         
         # First row of checkboxes
         cb_frame1 = tk.Frame(options_frame)
@@ -168,6 +168,39 @@ class VideoEnhancementApp:
         self.sharpen_type3_cb = tk.Checkbutton(cb_frame2, text="Sharpen (Sobel Y)", variable=self.sharpen_type3_var, font=self.my_font)
         self.sharpen_type3_cb.pack(side=tk.LEFT, padx=20)
         
+        # Sliders for Contrast, Brightness, and Gamma
+        slider_frame = tk.Frame(control_frame)
+        slider_frame.pack(fill=tk.X, pady=5)
+
+        # Contrast Slider
+        contrast_label = tk.Label(slider_frame, text="Contrast", font=self.my_font)
+        contrast_label.pack(side=tk.LEFT, padx=10)
+        self.contrast_slider = tk.Scale(slider_frame, from_=0.5, to=2.0, resolution=0.1, orient=tk.HORIZONTAL, length=200, 
+                                        command=self.update_enhanced_image)
+        self.contrast_slider.set(1.0)  # Default value
+        self.contrast_slider.pack(side=tk.LEFT, padx=10)
+
+        # Brightness Slider
+        brightness_label = tk.Label(slider_frame, text="Brightness", font=self.my_font)
+        brightness_label.pack(side=tk.LEFT, padx=10)
+        self.brightness_slider = tk.Scale(slider_frame, from_=-100, to=100, resolution=1, orient=tk.HORIZONTAL, length=200, 
+                                          command=self.update_enhanced_image)
+        self.brightness_slider.set(0)  # Default value
+        self.brightness_slider.pack(side=tk.LEFT, padx=10)
+
+        # Gamma Slider
+        gamma_label = tk.Label(slider_frame, text="Gamma", font=self.my_font)
+        gamma_label.pack(side=tk.LEFT, padx=10)
+        self.gamma_slider = tk.Scale(slider_frame, from_=0.5, to=2.0, resolution=0.1, orient=tk.HORIZONTAL, length=200, 
+                                     command=self.update_enhanced_image)
+        self.gamma_slider.set(1.0)  # Default value
+        self.gamma_slider.pack(side=tk.LEFT, padx=10)
+
+        # Default Button
+        default_button = tk.Button(slider_frame, text="Default", font=self.my_font, bg="green", fg="white",
+                                   command=self.reset_to_default, height=1, width=10)
+        default_button.pack(side=tk.LEFT, padx=10)
+
         # Button frame
         button_frame = tk.Frame(control_frame)
         button_frame.pack(fill=tk.X, pady=10)
@@ -279,6 +312,7 @@ class VideoEnhancementApp:
                     self.start_button.config(state=tk.NORMAL)
                     self.export_button.config(state=tk.NORMAL)
                     self.object_tracking_cb.config(state=tk.DISABLED)
+                    self.current_frame = image
                 else:
                     tk.messagebox.showerror("Error", "Could not load the image file.")
             else:
@@ -346,6 +380,7 @@ class VideoEnhancementApp:
                 image = cv2.imread(self.video_path)
                 if image is not None:
                     # Apply enhancements
+
                     enhanced_image = self.enhance_frame(image)
                     
                     # Display original and enhanced images
@@ -517,7 +552,7 @@ class VideoEnhancementApp:
         """Apply selected enhancements to the frame"""
         # Create a copy to avoid modifying the original
         enhanced = frame.copy()
-        
+
         # Color Enhancement (Auto Tone)
         if self.color_enhancement_var.get():
             if len(enhanced.shape) == 3:  # Only apply to color images
@@ -530,6 +565,9 @@ class VideoEnhancementApp:
         if self.ai_model_var.get() and self.ai_model_loaded:
             enhanced = apply_ai_model(enhanced)
         
+        # Lighting Enhancement
+        enhanced = self.update_enhanced_contrast(frame=enhanced)
+
         # Object tracking - apply this last so tracking is visible
         if self.object_tracking_var.get():
             enhanced = self.track_objects(enhanced)
@@ -872,4 +910,61 @@ class VideoEnhancementApp:
         
         self.root.destroy()
 
+    def update_enhanced_contrast(self, event=None, frame=None):
+            
+        if (frame is None):
+            frame = self.current_frame
+        # Get slider values
+        try:
+            contrast = float(self.contrast_slider.get())
+            brightness = float(self.brightness_slider.get())
+            gamma = float(self.gamma_slider.get())
+        except Exception as e:
+            print(f"Error updating enhanced image: {e}")
+            return frame
+            
+        if frame is not None:     
+            adjusted = self.apply_adjustments(frame, contrast, brightness, gamma)
+            # Apply enhancements
+            return adjusted
+        else:
+            return frame
 
+    def update_enhanced_image(self,event=None):
+        """Update the enhanced image based on slider values"""
+        enhanced_image = self.update_enhanced_contrast()
+        # Update the enhanced canvas
+        self.display_frame_on_canvas(enhanced_image, self.enhanced_canvas, is_enhanced=True)
+
+    def apply_adjustments(self, frame, contrast, brightness, gamma):
+        """Apply contrast, brightness, and gamma adjustments to a frame"""
+        # Adjust contrast and brightness
+        adjusted = cv2.convertScaleAbs(frame, alpha=contrast, beta=brightness)
+
+        # Adjust gamma
+        if gamma != 1.0:
+            inv_gamma = 1.0 / gamma
+            table = np.array([(i / 255.0) ** inv_gamma * 255 for i in np.arange(0, 256)]).astype("uint8")
+            adjusted = cv2.LUT(adjusted, table)
+
+        return adjusted
+    
+    def reset_to_default(self):
+        """Reset all sliders and checkboxes to default values and update the enhanced image"""
+        # Reset sliders to default values
+        self.contrast_slider.set(1.0)  # Reset contrast to default
+        self.brightness_slider.set(0)  # Reset brightness to default
+        self.gamma_slider.set(1.0)  # Reset gamma to default
+
+        # Uncheck all checkboxes
+        self.ai_model_var.set(False)
+        self.color_enhancement_var.set(False)
+        self.object_tracking_var.set(False)
+        self.sharpen_type1_var.set(False)
+        self.sharpen_type2_var.set(False)
+        self.sharpen_type3_var.set(False)
+
+        # Reset the enhanced image to the original frame with no enhancements
+        if self.current_frame is not None:
+            # Display the original frame on the enhanced canvas
+            self.display_frame_on_canvas(self.current_frame, self.enhanced_canvas, is_enhanced=False)
