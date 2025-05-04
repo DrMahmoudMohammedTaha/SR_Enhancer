@@ -22,11 +22,11 @@ class VideoEnhancementApp:
 
         self.user_selection = None
 
-        window_width = self.screen_width - 50
-        window_height = self.screen_height - 50
+        window_width = self.screen_width - 70
+        window_height = self.screen_height - 70
 
-        x_pos = (self.screen_width - window_width) // 2 - 20
-        y_pos = (self.screen_height - window_height) // 2 - 20
+        x_pos = (self.screen_width - window_width) // 2 - 10
+        y_pos = (self.screen_height - window_height) // 2 - 30
 
         self.root.geometry(f"{window_width}x{window_height}+{x_pos}+{y_pos}")
 
@@ -53,8 +53,8 @@ class VideoEnhancementApp:
         self.object_ids = {}
         self.next_id = 1
         self.detec = []
-        self.min_width = 2
-        self.min_height = 2
+        self.min_width = 10
+        self.min_height = 10
         
         # AI model variables
 
@@ -75,10 +75,10 @@ class VideoEnhancementApp:
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
         
         # Add exit button to top right corner
-        exit_button = tk.Button(root, text="X", command=self.exit_application,
-                               bg="red", fg="white", font=("Arial", 12, "bold"), 
-                               relief=tk.RAISED, height=1, width=3)
-        exit_button.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
+        # exit_button = tk.Button(root, text="X", command=self.exit_application,
+        #                        bg="red", fg="white", font=("Arial", 12, "bold"), 
+        #                        relief=tk.RAISED, height=1, width=3)
+        # exit_button.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
         
         # Create display frame for videos
         self.display_frame = tk.Frame(main_frame)
@@ -88,8 +88,8 @@ class VideoEnhancementApp:
         left_panel = tk.Frame(self.display_frame, bd=2, relief=tk.SUNKEN)
         left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=5)
         
-        video_label1 = tk.Label(left_panel, text="Source Video", font=self.my_font)
-        video_label1.pack(pady=5)
+        # video_label1 = tk.Label(left_panel, text="Source Video", font=self.my_font)
+        # video_label1.pack(pady=5)
         
         # Canvas for original video
         self.original_canvas = tk.Canvas(left_panel, bg="black", width=self.screen_width//2 - 100, height=self.screen_height - 350)
@@ -109,8 +109,8 @@ class VideoEnhancementApp:
         right_panel = tk.Frame(self.display_frame, bd=2, relief=tk.SUNKEN)
         right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=5)
         
-        video_label2 = tk.Label(right_panel, text="Enhanced Video", font=self.my_font)
-        video_label2.pack(pady=5)
+        # video_label2 = tk.Label(right_panel, text="Enhanced Video", font=self.my_font)
+        # video_label2.pack(pady=5)
         
         # Canvas for enhanced video
         self.enhanced_canvas = tk.Canvas(right_panel, bg="black", width=self.screen_width//2 - 100, height=self.screen_height - 350)
@@ -148,17 +148,19 @@ class VideoEnhancementApp:
         self.color_enhancement_var = tk.BooleanVar()
         self.color_enhancement_cb = tk.Checkbutton(cb_frame1, text="Color Enhancement", variable=self.color_enhancement_var, font=self.my_font)
         self.color_enhancement_cb.pack(side=tk.LEFT, padx=25)
-        
-        # Add object tracking checkbox
-        self.object_tracking_var = tk.BooleanVar()
-        self.object_tracking_cb = tk.Checkbutton(cb_frame1, text="Track Objects", variable=self.object_tracking_var, font=self.my_font)
-        self.object_tracking_cb.pack(side=tk.LEFT, padx=25)
-        
+
         # Add Histogram Equalization Checkbox
         self.histogram_equalization_var = tk.BooleanVar()
         self.histogram_equalization_cb = tk.Checkbutton(cb_frame1, text="Histogram Equ.",
                                                         variable=self.histogram_equalization_var, font=self.my_font)
         self.histogram_equalization_cb.pack(side=tk.LEFT, padx=20)
+       
+        # Add object tracking checkbox
+        self.object_tracking_var = tk.BooleanVar()
+        self.object_tracking_cb = tk.Checkbutton(cb_frame1, text="Track Objects", variable=self.object_tracking_var, font=self.my_font)
+        self.object_tracking_cb.pack(side=tk.LEFT, padx=25)
+        
+
 
         # Second row of checkboxes
         cb_frame2 = tk.Frame(options_frame)
@@ -176,6 +178,16 @@ class VideoEnhancementApp:
         self.sharpen_type3_cb = tk.Checkbutton(cb_frame2, text="Sharpen (Sobel Y)", variable=self.sharpen_type3_var, font=self.my_font)
         self.sharpen_type3_cb.pack(side=tk.LEFT, padx=20)
         
+        # Add Blur Checkbox
+        self.blur_var = tk.BooleanVar()
+        self.blur_cb = tk.Checkbutton(cb_frame2, text="Blur", variable=self.blur_var, font=self.my_font)
+        self.blur_cb.pack(side=tk.LEFT, padx=20)
+
+        # Default Button
+        default_button = tk.Button(cb_frame2, text="Reset", font=self.my_font, bg="green", fg="white",
+                                   command=self.reset_to_default, height=1, width=10)
+        default_button.pack(side=tk.LEFT, padx=10)
+
         # Sliders for Contrast, Brightness, and Gamma
         slider_frame = tk.Frame(control_frame)
         slider_frame.pack(fill=tk.X, pady=5)
@@ -204,12 +216,16 @@ class VideoEnhancementApp:
         self.gamma_slider.set(1.0)  # Default value
         self.gamma_slider.pack(side=tk.LEFT, padx=10)
 
-        # Default Button
-        default_button = tk.Button(slider_frame, text="Reset", font=self.my_font, bg="green", fg="white",
-                                   command=self.reset_to_default, height=1, width=10)
-        default_button.pack(side=tk.LEFT, padx=10)
+        # Add Slider for Distance Threshold
+        dist_label = tk.Label(slider_frame, text="Tracking Dist", font=self.my_font)
+        dist_label.pack(side=tk.LEFT, padx=10)
+        self.distance_slider = tk.Scale(slider_frame, from_=2, to=50, resolution=1, orient=tk.HORIZONTAL, length=200, font=("Arial", 10))
+        self.distance_slider.set(10)  # Default value
+        self.distance_slider.pack(side=tk.LEFT, padx=10)
 
-
+        # Bind the slider movement to an event
+        self.distance_slider.bind("<ButtonRelease-1>", self.update_distance_threshold)
+        
         # Button frame
         button_frame = tk.Frame(control_frame)
         button_frame.pack(fill=tk.X, pady=10)
@@ -483,7 +499,7 @@ class VideoEnhancementApp:
             for known_center, known_id in self.object_ids.items():
                 # Calculate distance between centers
                 dist = np.sqrt((center[0] - known_center[0])**2 + (center[1] - known_center[1])**2)
-                if dist < min_dist and dist < 100:  # 50 pixel threshold for matching
+                if dist < min_dist and dist < 100  :  # 50 pixel threshold for matching
                     min_dist = dist
                     min_id = known_id
             
@@ -538,14 +554,19 @@ class VideoEnhancementApp:
 
         # Sharpen Enhancement
         enhanced = apply_sharpening(enhanced,self.sharpen_type1_var.get(),self.sharpen_type2_var.get(),self.sharpen_type3_var.get())
-                
+
+        # Blur Enhancement
+        if self.blur_var.get():
+            enhanced = cv2.GaussianBlur(enhanced, (5, 5), 0)
+    
         # AI model enhancement
         if self.ai_model_var.get() and self.ai_model_loaded:
             enhanced = apply_ai_model(enhanced)
         
         # Histogram Equalization
         if self.histogram_equalization_var.get():
-            enhanced = self.histogram_equalization(enhanced)        
+            enhanced = self.histogram_equalization(enhanced)       
+
         # Object tracking - apply this last so tracking is visible
         if self.object_tracking_var.get():
             enhanced = self.track_objects(enhanced)
@@ -934,4 +955,11 @@ class VideoEnhancementApp:
             equalized = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
         
         return equalized
+    
+    def update_distance_threshold(self, event):
+        """Update the distance threshold when the slider value changes."""
+        self.min_width = self.distance_slider.get()
+        self.min_height = self.distance_slider.get()
+        # print(f"Distance threshold updated to: {new_threshold}")
+        # Additional logic can be added here if needed
     
