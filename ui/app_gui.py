@@ -114,6 +114,7 @@ class VideoEnhancementApp:
         # Canvas for enhanced video
         self.enhanced_canvas = tk.Canvas(right_panel, bg="black", width=self.screen_width//2 - 100, height=self.screen_height - 350)
         self.enhanced_canvas.pack(fill=tk.BOTH, expand=True)
+        self.enhanced_canvas.bind("<Button-1>", self.on_enhanced_canvas_click)
         
         # Progress bar for enhanced video
         enhanced_progress_frame = tk.Frame(right_panel)
@@ -295,6 +296,13 @@ class VideoEnhancementApp:
     #                 self.detec = []
     #         else:
     #             tk.messagebox.showerror("Error", "Could not open the video file.")
+
+    def on_enhanced_canvas_click(self, event):
+        """Handle mouse click on the enhanced canvas and print coordinates."""
+        # Get the x and y coordinates of the click
+        x = event.x
+        y = event.y
+        print(f"Clicked at: x={x}, y={y}")
 
     def load_video(self):
         """Open file dialog to choose a video or image file"""
