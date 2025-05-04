@@ -1,3 +1,4 @@
+
 import tkinter as tk
 import threading
 import cv2
@@ -11,8 +12,6 @@ from services.enhancer import *
 from models.srcnn_model import *
 from torchvision import transforms
 
-
-
 class VideoEnhancementApp:
     def __init__(self, root):
         self.root = root
@@ -20,6 +19,8 @@ class VideoEnhancementApp:
 
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
+
+        self.user_selection = None
 
         window_width = self.screen_width - 50
         window_height = self.screen_height - 50
@@ -204,9 +205,10 @@ class VideoEnhancementApp:
         self.gamma_slider.pack(side=tk.LEFT, padx=10)
 
         # Default Button
-        default_button = tk.Button(slider_frame, text="Default", font=self.my_font, bg="green", fg="white",
+        default_button = tk.Button(slider_frame, text="Reset", font=self.my_font, bg="green", fg="white",
                                    command=self.reset_to_default, height=1, width=10)
         default_button.pack(side=tk.LEFT, padx=10)
+
 
         # Button frame
         button_frame = tk.Frame(control_frame)
@@ -259,50 +261,13 @@ class VideoEnhancementApp:
         # Bind the escape key to exit full screen
         self.root.bind("<Escape>", lambda event: self.exit_application())
         
-    # def load_video(self):
-    #     """Open file dialog to choose a video file"""
-    #     self.video_path = filedialog.askopenfilename(
-    #         title="Select Video File",
-    #         filetypes=[
-    #             ("Video files", "*.mp4 *.avi *.mov *.mkv"),
-    #             ("All files", "*.*")
-    #         ]
-    #     )
-        
-    #     if self.video_path:
-    #         self.cap = cv2.VideoCapture(self.video_path)
-    #         if self.cap.isOpened():
-    #             self.start_button.config(state=tk.NORMAL)
-    #             self.export_button.config(state=tk.NORMAL)
-    #             # Read the first frame and display it
-    #             ret, frame = self.cap.read()
-    #             if ret:
-    #                 self.display_frame_on_canvas(frame, self.original_canvas)
-    #                 enhanced = self.enhance_frame(frame)
-    #                 self.display_frame_on_canvas(enhanced, self.enhanced_canvas, is_enhanced=True)
-    #                 # Get total frames
-    #                 self.frame_count = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    #                 # Reset position
-    #                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-    #                 # Initialize progress bars
-    #                 self.original_progress["maximum"] = self.frame_count
-    #                 self.enhanced_progress["maximum"] = self.frame_count
-    #                 self.original_progress["value"] = 0
-    #                 self.enhanced_progress["value"] = 0
-    #                 # Reset object tracking variables
-    #                 self.bg_subtractor = cv2.bgsegm.createBackgroundSubtractorMOG()
-    #                 self.object_ids = {}
-    #                 self.next_id = 1
-    #                 self.detec = []
-    #         else:
-    #             tk.messagebox.showerror("Error", "Could not open the video file.")
-
     def on_enhanced_canvas_click(self, event):
         """Handle mouse click on the enhanced canvas and print coordinates."""
         # Get the x and y coordinates of the click
         x = event.x
         y = event.y
-        print(f"Clicked at: x={x}, y={y}")
+        self.user_selection = (x, y)
+        print(f"User selection: {self.user_selection}")
 
     def load_video(self):
         """Open file dialog to choose a video or image file"""
@@ -362,32 +327,6 @@ class VideoEnhancementApp:
                         self.detec = []
                 else:
                     tk.messagebox.showerror("Error", "Could not open the video file.")
-
-    # def start_video(self):
-    #     """Start playing the videos"""
-    #     if self.cap and not self.is_running:
-    #         self.is_running = True
-    #         self.start_button.config(state=tk.DISABLED)
-    #         self.stop_button.config(state=tk.NORMAL)
-            
-    #         # Reset video to the beginning
-    #         self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-    #         self.current_frame_number = 0
-            
-    #         # Reset progress bars
-    #         self.original_progress["value"] = 0
-    #         self.enhanced_progress["value"] = 0
-            
-    #         # Reset object tracking variables
-    #         self.bg_subtractor = cv2.bgsegm.createBackgroundSubtractorMOG()
-    #         self.object_ids = {}
-    #         self.next_id = 1
-    #         self.detec = []
-            
-    #         # Start processing in a separate thread
-    #         self.processing_thread = threading.Thread(target=self.process_video)
-    #         self.processing_thread.daemon = True
-    #         self.processing_thread.start()
 
     def start_video(self):
         """Start processing the selected file (video or image)"""
@@ -527,13 +466,14 @@ class VideoEnhancementApp:
             # Get center of the object
             center = get_center(x, y, w, h)
             current_centers.append((center, (x, y, w, h)))
-            
+            # print(center)
             # Store detection for line crossing check
             if center not in self.detec:
                 self.detec.append(center)
         
         # Update object IDs based on proximity to previous objects
         new_object_ids = {}
+        # print(current_centers)
         for center, (x, y, w, h) in current_centers:
             obj_id = None
             # Try to match with existing objects
@@ -543,7 +483,7 @@ class VideoEnhancementApp:
             for known_center, known_id in self.object_ids.items():
                 # Calculate distance between centers
                 dist = np.sqrt((center[0] - known_center[0])**2 + (center[1] - known_center[1])**2)
-                if dist < min_dist and dist < 50:  # 50 pixel threshold for matching
+                if dist < min_dist and dist < 100:  # 50 pixel threshold for matching
                     min_dist = dist
                     min_id = known_id
             
@@ -557,15 +497,30 @@ class VideoEnhancementApp:
             # Store the new center with its ID
             new_object_ids[center] = obj_id
             
+            # print(f"Object ID: {obj_id}, Center: {center}")
             # Draw rectangle around the object
             cv2.rectangle(result, (x, y), (x+w, y+h), (0, 255, 0), 2)
             
             # Add label above the object
-            cv2.putText(result, f"ID: {obj_id}", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-        
+            cv2.putText(result, f"ID: {obj_id}", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
+
         # Update the object_ids dictionary for the next frame
         self.object_ids = new_object_ids
         
+        # Find the nearest center to the user selection
+        if self.user_selection:
+            min_distance = float('inf')
+            nearest_center = None
+            for center, _ in current_centers:
+                distance = np.sqrt((center[0] - self.user_selection[0])**2 + (center[1] - self.user_selection[1])**2)
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_center = center
+            
+            if nearest_center:
+                print(f"Nearest center to user selection {self.user_selection}: {nearest_center} (Distance: {min_distance:.2f})")
+                self.user_selection = nearest_center
+
         return result
         
     def enhance_frame(self, frame):
@@ -595,6 +550,10 @@ class VideoEnhancementApp:
         if self.object_tracking_var.get():
             enhanced = self.track_objects(enhanced)
         
+        if self.user_selection:
+            x, y = self.user_selection
+            cv2.circle(enhanced, (x, y), 4, (0, 0, 255), -1)  # Draw a red circle with radius 10
+    
         return enhanced
     
     def display_frame_on_canvas(self, frame, canvas, is_enhanced=False):
@@ -652,41 +611,6 @@ class VideoEnhancementApp:
         # Update canvas
         canvas.create_image(canvas_width//2, canvas_height//2, image=photo, anchor=tk.CENTER)
         canvas.image = photo  # Keep a reference to prevent garbage collection
-
-    # def export_video(self):
-    #     """Export the enhanced video with selected enhancements"""
-    #     if not self.video_path or self.is_exporting:
-    #         return
-        
-    #     # Ask user for save location
-    #     output_path = filedialog.asksaveasfilename(
-    #         title="Save Enhanced Video",
-    #         defaultextension=".mp4",
-    #         filetypes=[
-    #             ("MP4 video", "*.mp4"),
-    #             ("AVI video", "*.avi"),
-    #             ("MKV video", "*.mkv"),
-    #             ("All files", "*.*")
-    #         ]
-    #     )
-        
-    #     if not output_path:
-    #         return
-        
-    #     # Disable buttons during export
-    #     self.start_button.config(state=tk.DISABLED)
-    #     self.stop_button.config(state=tk.DISABLED)
-    #     self.export_button.config(state=tk.DISABLED)
-        
-    #     # Stop playback if running
-    #     if self.is_running:
-    #         self.stop_video()
-        
-    #     # Start export in separate thread
-    #     self.is_exporting = True
-    #     self.export_thread = threading.Thread(target=self.process_export, args=(output_path,))
-    #     self.export_thread.daemon = True
-    #     self.export_thread.start()
 
     def export_video(self):
         """Export the enhanced video or image with selected enhancements"""
@@ -989,6 +913,7 @@ class VideoEnhancementApp:
         self.sharpen_type2_var.set(False)
         self.sharpen_type3_var.set(False)
         self.histogram_equalization_var.set(False)
+        self.user_selection = None  # Reset user selection
 
         # Reset the enhanced image to the original frame with no enhancements
         if self.current_frame is not None:
@@ -1010,71 +935,3 @@ class VideoEnhancementApp:
         
         return equalized
     
-    # def histogram_equalization(self, frame):
-    #     """
-    #     Perform histogram equalization on the input image.
-    #     Supports both grayscale and BGR color images.
-    #     """
-    #     if frame.ndim == 2 or (frame.ndim == 3 and frame.shape[2] == 1):  # Grayscale
-    #         equalized = cv2.equalizeHist(frame)
-    #     elif frame.ndim == 3 and frame.shape[2] == 3:  # Color image
-    #         yuv = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV)
-    #         yuv[:, :, 0] = cv2.equalizeHist(yuv[:, :, 0])
-    #         equalized = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
-    #     else:
-    #         raise ValueError("Unsupported image format for histogram equalization.")
-
-    #     return equalized
-    
-
-    # def histogram_equalization(self, frame):
-    #     """
-    #     Convert input image to grayscale (if not already), and apply histogram equalization.
-    #     """
-    #     # Convert to grayscale if it's a color image
-    #     if frame.ndim == 3 and frame.shape[2] == 3:
-    #         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        
-    #     print("Applying histogram equalization")
-    #     # Apply histogram equalization
-    #     equalized = cv2.equalizeHist(frame)
-    #     cv2.imwrite("debug_equalized_image.jpg", equalized)
-        
-    #     return equalized
-
-
-
-    # def histogram_equalization_2(self, frame):
-    #     """
-    #     Applies histogram equalization to a colored image.
-
-    #     Args:
-    #         image_path: The path to the input image file.
-
-    #     Returns:
-    #         The processed image as a NumPy array, or None if an error occurs.
-    #     """
-    #     try:
-    #         # Load the image using OpenCV
-    #         img = frame.copy()
-
-    #         # Convert the image to YCrCb color space
-    #         img_ycrcb = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
-
-    #         # Split the image into its Y, Cr, and Cb channels
-    #         y, cr, cb = cv2.split(img_ycrcb)
-
-    #         # Apply histogram equalization to the Y channel
-    #         y_eq = cv2.equalizeHist(y)
-
-    #         # Merge the equalized Y channel with the original Cr and Cb channels
-    #         img_ycrcb_eq = cv2.merge((y_eq, cr, cb))
-
-    #         # Convert the image back to BGR color space
-    #         img_eq = cv2.cvtColor(img_ycrcb_eq, cv2.COLOR_YCrCb2BGR)
-
-    #         return img_eq
-
-    #     except Exception as e:
-    #         print(f"An error occurred: {e}")
-    #         return None
