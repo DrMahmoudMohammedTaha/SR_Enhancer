@@ -7,10 +7,12 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
+
+SR_model_loaded = False
 transform = transforms.Compose([transforms.ToTensor()])
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model_path = "models\\srcnn_model.pth"
-model = None
+SR_model_path = "models\\srcnn_model.pth"
+SR_model = None
 
 class SRCNN(nn.Module):
     def __init__(self):
@@ -24,22 +26,30 @@ class SRCNN(nn.Module):
         x = F.relu(self.conv2(x))
         return self.conv3(x)
 
-def load_model(model_path: str):
+def load_SR_model(SR_model_path: str):
 
-    global model
+    global SR_model
     global device
     global transform
-
-    model = SRCNN().to(device)
-    model.load_state_dict(torch.load(model_path, map_location=device))
-    model.eval()
-
-    return model
+    global SR_model_loaded
 
 
-def apply_ai_model(frame):
+    try:
+        SR_model = SRCNN().to(device)
+        SR_model.load_state_dict(torch.load(SR_model_path, map_location=device))
+        SR_model.eval()
+        SR_model_loaded = True
 
-    global model
+    except Exception as e:
+        print(f"Error loading SR_model: {str(e)}")
+        SR_model_loaded = False
+
+    return SR_model_loaded
+
+
+def apply_SR_model(frame):
+
+    global SR_model
     global device
     global transform
             
@@ -54,14 +64,14 @@ def apply_ai_model(frame):
         pil_img = Image.fromarray(frame)
         input_tensor = transform(pil_img).unsqueeze(0).to(device)
 
-        # Process with model
+        # Process with SR_model
         with torch.no_grad():
-            output = model(input_tensor)
+            output = SR_model(input_tensor)
             output = output.squeeze(0).cpu().numpy()
             output = np.transpose(output, (1, 2, 0))
             output = (output * 255).astype(np.uint8)
         
         return output
     except Exception as e:
-        print(f"Error applying AI model: {str(e)}")
+        print(f"Error applying SR SR_model: {str(e)}")
         return frame

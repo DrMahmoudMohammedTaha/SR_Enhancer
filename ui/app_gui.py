@@ -4,30 +4,26 @@ import threading
 import cv2
 import time
 import os
-import torch
 import numpy as np
 from tkinter import filedialog, ttk, messagebox
 from PIL import Image, ImageTk
 from services.enhancer import *
 from models.srcnn_model import *
+from models.yolo_model import *
 from torchvision import transforms
 
 class VideoEnhancementApp:
     def __init__(self, root):
+   
         self.root = root
         self.root.title("Video Enhancement Application")
 
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
-
-        self.user_selection = None
-
         window_width = self.screen_width - 70
         window_height = self.screen_height - 70
-
         x_pos = (self.screen_width - window_width) // 2 - 10
         y_pos = (self.screen_height - window_height) // 2 - 30
-
         self.root.geometry(f"{window_width}x{window_height}+{x_pos}+{y_pos}")
 
         # Set to full screen
@@ -56,30 +52,20 @@ class VideoEnhancementApp:
         self.min_width = 10
         self.min_height = 10
         
-        # AI model variables
-
+        self.user_selection = None
         self.transform = transforms.Compose([transforms.ToTensor()])
-        self.ai_model_loaded = False
         self.my_font = ("Arial", 12, "bold")
         
-        try:
+        global SR_model_loaded
+        global yolo_model_loaded     
 
-            load_model("models\\srcnn_model.pth")
-            self.ai_model_loaded = True
-        except Exception as e:
-            print(f"Error loading AI model: {str(e)}")
-            self.ai_model_loaded = False
+        SR_model_loaded = load_SR_model("models\\srcnn_model.pth")
+        yolo_model_loaded = load_yolo_model("models\\yolo_model.pt")
         
         # Create main frame
         main_frame = tk.Frame(root)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
-        
-        # Add exit button to top right corner
-        # exit_button = tk.Button(root, text="X", command=self.exit_application,
-        #                        bg="red", fg="white", font=("Arial", 12, "bold"), 
-        #                        relief=tk.RAISED, height=1, width=3)
-        # exit_button.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
-        
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5) 
+       
         # Create display frame for videos
         self.display_frame = tk.Frame(main_frame)
         self.display_frame.pack(fill=tk.BOTH, expand=True)
@@ -87,10 +73,7 @@ class VideoEnhancementApp:
         # Left panel for original video
         left_panel = tk.Frame(self.display_frame, bd=2, relief=tk.SUNKEN)
         left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=5)
-        
-        # video_label1 = tk.Label(left_panel, text="Source Video", font=self.my_font)
-        # video_label1.pack(pady=5)
-        
+         
         # Canvas for original video
         self.original_canvas = tk.Canvas(left_panel, bg="black", width=self.screen_width//2 - 100, height=self.screen_height - 350)
         self.original_canvas.pack(fill=tk.BOTH, expand=True)
@@ -108,10 +91,7 @@ class VideoEnhancementApp:
         # Right panel for enhanced video
         right_panel = tk.Frame(self.display_frame, bd=2, relief=tk.SUNKEN)
         right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=5)
-        
-        # video_label2 = tk.Label(right_panel, text="Enhanced Video", font=self.my_font)
-        # video_label2.pack(pady=5)
-        
+                
         # Canvas for enhanced video
         self.enhanced_canvas = tk.Canvas(right_panel, bg="black", width=self.screen_width//2 - 100, height=self.screen_height - 350)
         self.enhanced_canvas.pack(fill=tk.BOTH, expand=True)
@@ -139,11 +119,11 @@ class VideoEnhancementApp:
         cb_frame1 = tk.Frame(options_frame)
         cb_frame1.pack(fill=tk.X)
 
-        self.ai_model_var = tk.BooleanVar()
-        self.ai_model_cb = tk.Checkbutton(cb_frame1, text="AI Model", variable=self.ai_model_var, font=self.my_font)
-        self.ai_model_cb.pack(side=tk.LEFT, padx=25)
-        if not self.ai_model_loaded:
-            self.ai_model_cb.config(state=tk.DISABLED)
+        self.SR_model_var = tk.BooleanVar()
+        self.SR_model_cb = tk.Checkbutton(cb_frame1, text="SR Model", variable=self.SR_model_var, font=self.my_font)
+        self.SR_model_cb.pack(side=tk.LEFT, padx=25)
+        if not SR_model_loaded:
+            self.SR_model_cb.config(state=tk.DISABLED)
 
         self.color_enhancement_var = tk.BooleanVar()
         self.color_enhancement_cb = tk.Checkbutton(cb_frame1, text="Color Enhancement", variable=self.color_enhancement_var, font=self.my_font)
@@ -158,9 +138,14 @@ class VideoEnhancementApp:
         # Add object tracking checkbox
         self.object_tracking_var = tk.BooleanVar()
         self.object_tracking_cb = tk.Checkbutton(cb_frame1, text="Track Objects", variable=self.object_tracking_var, font=self.my_font)
-        self.object_tracking_cb.pack(side=tk.LEFT, padx=25)
+        self.object_tracking_cb.pack(side=tk.LEFT, padx=20)
         
-
+        # Add yolo detection
+        self.object_yolo_var = tk.BooleanVar()
+        self.object_yolo_cb = tk.Checkbutton(cb_frame1, text="Yolo Detection", variable=self.object_yolo_var, font=self.my_font)
+        self.object_yolo_cb.pack(side=tk.LEFT, padx=20)
+        if not yolo_model_loaded:
+            self.object_yolo_cb.config(state=tk.DISABLED)
 
         # Second row of checkboxes
         cb_frame2 = tk.Frame(options_frame)
@@ -274,8 +259,6 @@ class VideoEnhancementApp:
         self.rtsp_entry.pack(side=tk.LEFT, padx=5)
         self.rtsp_entry.insert(0, "rtsp://")
 
-        # Bind the escape key to exit full screen
-        self.root.bind("<Escape>", lambda event: self.exit_application())
         
     def on_enhanced_canvas_click(self, event):
         """Handle mouse click on the enhanced canvas and print coordinates."""
@@ -482,7 +465,6 @@ class VideoEnhancementApp:
             # Get center of the object
             center = get_center(x, y, w, h)
             current_centers.append((center, (x, y, w, h)))
-            # print(center)
             # Store detection for line crossing check
             if center not in self.detec:
                 self.detec.append(center)
@@ -543,7 +525,11 @@ class VideoEnhancementApp:
         """Apply selected enhancements to the frame"""
         # Create a copy to avoid modifying the original
         enhanced = frame.copy()
-
+        
+        #############################
+        # Frame Enhancements
+        #############################
+        
         # Lighting Enhancement
         enhanced = self.update_enhanced_contrast(frame=enhanced.copy())
 
@@ -559,18 +545,26 @@ class VideoEnhancementApp:
         if self.blur_var.get():
             enhanced = cv2.GaussianBlur(enhanced, (5, 5), 0)
     
-        # AI model enhancement
-        if self.ai_model_var.get() and self.ai_model_loaded:
-            enhanced = apply_ai_model(enhanced)
+        # SR model enhancement
+        if self.SR_model_var.get() and SR_model_loaded:
+            enhanced = apply_SR_model(enhanced)
         
         # Histogram Equalization
         if self.histogram_equalization_var.get():
             enhanced = self.histogram_equalization(enhanced)       
 
+        #############################
+        # Object Detection and Tracking
+        #############################
+        
         # Object tracking - apply this last so tracking is visible
         if self.object_tracking_var.get():
             enhanced = self.track_objects(enhanced)
         
+        # Yolo detection - apply this last so tracking is visible
+        if self.object_yolo_var.get():
+            enhanced = apply_yolo_model(enhanced, conf_threshold=0.25)
+
         if self.user_selection:
             x, y = self.user_selection
             cv2.circle(enhanced, (x, y), 4, (0, 0, 255), -1)  # Draw a red circle with radius 10
@@ -860,12 +854,6 @@ class VideoEnhancementApp:
             self.root.after(0, lambda: self.export_button.config(state=tk.NORMAL))
             self.is_exporting = False
     
-    def exit_application(self):
-        """Clean up and exit the application"""
-        if self.is_running:
-            self.is_running = False
-            if self.processing_thread and self.processing_thread.is_alive():
-                self.processing_thread.join(timeout=1.0)
         
         if self.is_exporting:
             if messagebox.askyesno("Export in Progress", "An export is in progress. Do you want to cancel and exit?"):
@@ -925,9 +913,8 @@ class VideoEnhancementApp:
         self.contrast_slider.set(1.0)  # Reset contrast to default
         self.brightness_slider.set(0)  # Reset brightness to default
         self.gamma_slider.set(1.0)  # Reset gamma to default
-
-        # Uncheck all checkboxes
-        self.ai_model_var.set(False)
+        self.SR_model_var.set(False)
+        self.object_yolo_var.set(False)
         self.color_enhancement_var.set(False)
         self.object_tracking_var.set(False)
         self.sharpen_type1_var.set(False)
@@ -960,6 +947,4 @@ class VideoEnhancementApp:
         """Update the distance threshold when the slider value changes."""
         self.min_width = self.distance_slider.get()
         self.min_height = self.distance_slider.get()
-        # print(f"Distance threshold updated to: {new_threshold}")
-        # Additional logic can be added here if needed
     
