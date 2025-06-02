@@ -1,7 +1,7 @@
 import os
 
 # ✅ Set your labels folder path here
-labels_folder = "C:\\Users\\Cloud Tech\\Downloads\\++unified_dataset\\+far_human\\valid\\labels"
+labels_folder = "C:\\Users\\Mahmoud_Taha\\Downloads\\++ far car - VAID.v1i.yolov8\\test\\labels"
 
 def replace_class_id_with_2(labels_folder, new_class_id):
     for filename in os.listdir(labels_folder):
@@ -28,4 +28,4 @@ def replace_class_id_with_2(labels_folder, new_class_id):
     print(f"\nAll class IDs have been set to {new_class_id}.")
 
 # 🔧 Run the replacement
-replace_class_id_with_2(labels_folder , "1")
+replace_class_id_with_2(labels_folder , "0")

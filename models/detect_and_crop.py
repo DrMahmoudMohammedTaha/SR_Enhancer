@@ -7,10 +7,10 @@ from ultralytics import YOLO
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Path to YOLO model
-YOLO_MODEL_PATH = os.path.join('yolo_model.pt')
+YOLO_MODEL_PATH = os.path.join('C:\\Users\\Mahmoud_Taha\\Downloads\\best.pt')
 
 # Input and output directories
-INPUT_DIR = 'D:\\_research\\pedestrian_datasets\\++far_drone\\valid\\images'
+INPUT_DIR = 'D:\\_research\\pedestrian_datasets\\++ far car - VAID.v1i.yolov8\\valid\\images'
 OUTPUT_DIR = os.path.join(INPUT_DIR, 'cropped')
 
 # Ensure output directory exists
@@ -32,7 +32,7 @@ def predict(model, image, conf_threshold=0.25):
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
             conf = float(box.conf)
             cls = int(box.cls)
-            if cls == 2:  # Assuming class 0 is the target class
+            if cls == 1:  # Assuming class 0 is the target class
                 detections.append((x1, y1, x2, y2, conf, cls))
     return detections
 

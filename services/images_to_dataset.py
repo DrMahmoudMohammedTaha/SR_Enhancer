@@ -4,7 +4,7 @@ import random
 from pathlib import Path
 
 # Configuration
-input_root = 'SpaceTimeShapes_images'
+input_root = 'D:\\_research\\pedestrian_datasets\\++far_human\\_cropped_far_human'
 output_root = '_dataset'
 ratios = (0.7, 0.15, 0.15)  # train, val, test
 
