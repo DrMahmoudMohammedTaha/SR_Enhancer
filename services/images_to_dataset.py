@@ -4,8 +4,8 @@ import random
 from pathlib import Path
 
 # Configuration
-input_root = 'D:\\_research\\pedestrian_datasets\\++far_human\\_cropped_far_human'
-output_root = '_dataset'
+input_root = 'D:\\_research\\pedestrian_datasets\\++far_drone\\_cropped_far_drone'
+output_root = 'D:\\_research\\pedestrian_datasets\\++far_drone\\_dataset'
 ratios = (0.7, 0.15, 0.15)  # train, val, test
 
 # Create output folders

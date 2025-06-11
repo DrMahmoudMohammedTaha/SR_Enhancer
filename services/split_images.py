@@ -48,8 +48,8 @@ def split_images(
 
 # Example usage:
 split_images(
-    src_folder="D:\\_research\\pedestrian_datasets\\++far_human\\_cropped_far_human",
-    output_folder="D:\\_research\\pedestrian_datasets\\++far_human\\_dataset",
+    src_folder="D:\\_research\\pedestrian_datasets\\++far_drone\\_cropped_far_drone",
+    output_folder="D:\\_research\\pedestrian_datasets\\++far_drone\\_dataset",
     train_ratio=0.7,
     valid_ratio=0.2,
     test_ratio=0.1
