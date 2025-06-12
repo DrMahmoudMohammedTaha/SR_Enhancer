@@ -7,7 +7,7 @@ from ultralytics import YOLO
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Path to YOLO model
-YOLO_MODEL_PATH = os.path.join('C:\\Users\\Mahmoud_Taha\\Downloads\\best.pt')
+YOLO_MODEL_PATH = os.path.join('D:\\_research\\pedestrian_experiments\\experiment - super-resolution\\SR_Enhancer\\models\\best.pt')
 
 # Input and output directories
 INPUT_DIR = 'D:\\_research\\pedestrian_datasets\\++ far car - VAID.v1i.yolov8\\valid\\images'
@@ -17,6 +17,7 @@ OUTPUT_DIR = os.path.join(INPUT_DIR, 'cropped')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def load_yolo_model(yolo_path: str):
+    model = YOLO(yolo_path)
     try:
         model = YOLO(yolo_path)
         return model
