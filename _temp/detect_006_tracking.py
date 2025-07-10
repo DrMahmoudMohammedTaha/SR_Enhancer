@@ -52,6 +52,7 @@ model = YOLO("E:/LongRangeCameraProject/Python/Yolov8/datasets/yolo11n.pt")
 
 # RTSP stream setup
 rtsp_url = "rtsp://admin:admin_1234@192.168.100.13:554/cam/realmonitor?channel=1&subtype=0&transportMode=TCP"
+rtsp_url = 0
 cap = cv2.VideoCapture(rtsp_url)
 if not cap.isOpened():
     print("Error: Could not open video stream.")

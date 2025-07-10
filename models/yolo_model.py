@@ -12,9 +12,10 @@ from ultralytics import YOLO
 def load_yolo_model(yolo_path: str):
     global yolo_model
     global yolo_model_loaded
-
+    
     try:
         yolo_model = YOLO(yolo_path)
+        yolo_model.to('cuda')
         yolo_model_loaded = True
     except Exception as e:
         print(f"Error loading yolo_model: {str(e)}")

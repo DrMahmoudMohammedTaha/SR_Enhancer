@@ -1,0 +1,10 @@
+rtsp://admin:admin_1234@192.168.100.13:554/cam/realmointor?channel=1&subtype=0
+remove_salt_noise
+upscale_image_cv2
+inputs_restored = F.interpolate(inputs_low_res, scale_factor=2.0, mode='bicubic', align_corners=False)
+lag
+heat hazze reduction
+rtsp reproduction
+white noise removal
+apply smart sharpen 
+apply content-aware enhancement

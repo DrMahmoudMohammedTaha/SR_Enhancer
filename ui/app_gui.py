@@ -8,15 +8,19 @@ import numpy as np
 from tkinter import filedialog, ttk, messagebox
 from PIL import Image, ImageTk
 from services.enhancer import *
-from models.srcnn_model import *
+from services.measure_sharpness import *
+from services.measure_metrics import *
+# from models.srcnn_model import *
 from models.yolo_model import *
 from torchvision import transforms
+from concurrent.futures import ThreadPoolExecutor
 
 class VideoEnhancementApp:
     def __init__(self, root):
    
         self.root = root
         self.root.title("Video Enhancement Application")
+        self.executor = ThreadPoolExecutor(max_workers=2)
 
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
@@ -38,12 +42,13 @@ class VideoEnhancementApp:
         self.export_thread = None
         self.is_running = False
         self.is_exporting = False
+        self.frame_skip = 3
         self.frame_count = 0
         self.current_frame = None
         self.enhanced_frame = None
         self.current_frame_number = 0
-        self.delay = 30  # ms between frames
-        
+        # self.delay = 30  # ms between frames
+    
         # Object tracking variables
         self.bg_subtractor = None
         self.object_ids = {}
@@ -59,9 +64,11 @@ class VideoEnhancementApp:
         global SR_model_loaded
         global yolo_model_loaded     
 
-        SR_model_loaded = load_SR_model("models\\srcnn_model.pth")
+        # SR_model_loaded = load_SR_model("models\\srcnn_model.pth")
+        SR_model_loaded = False
         yolo_model_loaded = load_yolo_model("models\\yolo_model.pt")
-        
+        # yolo_model_loaded = False
+
         # Create main frame
         main_frame = tk.Frame(root)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5) 
@@ -145,6 +152,7 @@ class VideoEnhancementApp:
         self.object_yolo_cb = tk.Checkbutton(cb_frame1, text="Yolo Detection", variable=self.object_yolo_var, font=self.my_font)
         self.object_yolo_cb.pack(side=tk.LEFT, padx=20)
         if not yolo_model_loaded:
+            print("Yolo not loaded")
             self.object_yolo_cb.config(state=tk.DISABLED)
 
         # Second row of checkboxes
@@ -163,6 +171,14 @@ class VideoEnhancementApp:
         self.sharpen_type3_cb = tk.Checkbutton(cb_frame2, text="Sharpen (Sobel Y)", variable=self.sharpen_type3_var, font=self.my_font)
         self.sharpen_type3_cb.pack(side=tk.LEFT, padx=20)
         
+        self.sharpen_type4_var = tk.BooleanVar()
+        self.sharpen_type4_cb = tk.Checkbutton(cb_frame2, text="Sharpen (Unsharp)", variable=self.sharpen_type4_var, font=self.my_font)
+        self.sharpen_type4_cb.pack(side=tk.LEFT, padx=20)
+
+        self.sharpen_type5_var = tk.BooleanVar()
+        self.sharpen_type5_cb = tk.Checkbutton(cb_frame2, text="Sharpen (Deblur)", variable=self.sharpen_type5_var, font=self.my_font)
+        self.sharpen_type5_cb.pack(side=tk.LEFT, padx=20)
+
         # Add Blur Checkbox
         self.blur_var = tk.BooleanVar()
         self.blur_cb = tk.Checkbutton(cb_frame2, text="Blur", variable=self.blur_var, font=self.my_font)
@@ -250,8 +266,8 @@ class VideoEnhancementApp:
         self.metrics_button.pack(side=tk.LEFT, padx=10)
         self.show_metrics = False  # Track metrics display state
 
-        # Add the life stream key 
-        self.live_stream_button = tk.Button(button_frame, text="Life Stream", command=self.live_stream_video,
+        # Add the Live stream key 
+        self.live_stream_button = tk.Button(button_frame, text="Live Stream", command=self.live_stream_video,
                                      bg="red", fg="black", relief=tk.RAISED, height=3, width=12, font=self.my_font)
         self.live_stream_button.pack(side=tk.LEFT, padx=15)
 
@@ -407,9 +423,14 @@ class VideoEnhancementApp:
             # Store current frame
             self.current_frame = frame
             self.current_frame_number += 1
+
+            if self.current_frame_number % self.frame_skip != 0:
+                continue
             
             # Process the frame for enhancement
             self.enhanced_frame = self.enhance_frame(frame)
+            # future = self.executor.submit(self.enhance_frame, frame)
+            # self.enhanced_frame = future.result()
             
             # Update both canvases
             self.root.after(0, lambda: self.display_frame_on_canvas(self.current_frame, self.original_canvas))
@@ -418,8 +439,10 @@ class VideoEnhancementApp:
             # Update progress bars
             self.root.after(0, lambda: self.update_progress())
             
-            # Control frame rate
-            self.root.after(self.delay)
+            # # Control frame rate
+            # self.root.after(self.delay)
+
+
     
     def update_progress(self):
         """Update the progress bars based on current frame"""
@@ -541,6 +564,12 @@ class VideoEnhancementApp:
         # Sharpen Enhancement
         enhanced = apply_sharpening(enhanced,self.sharpen_type1_var.get(),self.sharpen_type2_var.get(),self.sharpen_type3_var.get())
 
+        if self.sharpen_type4_var.get():
+            enhanced = unsharp_mask(enhanced, sigma=2.0, strength=2.5)
+
+        if self.sharpen_type5_var.get():
+            enhanced = deblur_image_gpu(enhanced)
+
         # Blur Enhancement
         if self.blur_var.get():
             enhanced = cv2.GaussianBlur(enhanced, (5, 5), 0)
@@ -609,10 +638,28 @@ class VideoEnhancementApp:
         
         if is_enhanced and self.current_frame is not None and self.show_metrics:
             try:
-                psnr_val, ssim_val = compute_psnr_ssim(self.current_frame, self.enhanced_frame)
-                text = f"PSNR: {psnr_val:.2f}  SSIM: {ssim_val:.4f}"
-                cv2.putText(resized_frame, text, (10, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+                psnr_val, ssim_val = compute_psnr_ssim_torch(self.current_frame, self.enhanced_frame)
+                # psnr_val, ssim_val = compute_psnr_ssim(self.current_frame, self.enhanced_frame)
+                laplacian_var, tenengrad, hist_entrop = analyze_image_sharpness(self.enhanced_frame)
+                text = f"PSNR: {psnr_val:.2f}\nSSIM: {ssim_val:.4f}\n"
+                text = text + f"Laplacian_var: {laplacian_var}\nTenengrad: {tenengrad}\nHist_entrop: {hist_entrop}"
+
+                # Split text into lines
+                lines = text.split('\n')
+
+                # Set base position and style
+                x, y = 10, 20
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 0.5
+                color = (255, 0, 0)
+                thickness = 1
+                line_height = 25  # pixels between lines
+
+                # Draw each line
+                for i, line in enumerate(lines):
+                    y_pos = y + i * line_height
+                    cv2.putText(resized_frame, line, (x, y_pos), font, font_scale, color, thickness, cv2.LINE_AA)
+
             except Exception as e:
                 print(f"Metric calc error: {e}")
 
@@ -782,15 +829,18 @@ class VideoEnhancementApp:
             self.current_frame = frame
             self.current_frame_number += 1
             
-            if self.current_frame_number % 20 == 0:  # Update every 10 frames for performance
+            if self.current_frame_number % 4 == 0:  # Update every 10 frames for performance
                 # Process the frame for enhancement
-                self.enhanced_frame = self.enhance_frame(frame)            
+                self.enhanced_frame = self.enhance_frame(frame)        
+                # future = self.executor.submit(self.enhance_frame, frame)
+                # self.enhanced_frame = future.result()    
+                
                 # Update both canvases
                 self.root.after(0, lambda: self.display_frame_on_canvas(self.current_frame, self.original_canvas))
                 self.root.after(0, lambda: self.display_frame_on_canvas(self.enhanced_frame, self.enhanced_canvas, is_enhanced=True))
             
             # Control frame rate
-            time.sleep(0.01)  # ~30fps
+            # time.sleep(0.01)  # ~30fps
         
     def process_export(self, output_path):
         """Process the video and save it with enhancements"""
