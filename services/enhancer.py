@@ -62,6 +62,7 @@ def compute_psnr_ssim(original_frame, enhanced_frame):
     
     return psnr_val, ssim_val
 
+
 def auto_tone_image(img):
     result = np.zeros_like(img)
     for c in range(3):

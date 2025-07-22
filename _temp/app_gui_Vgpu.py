@@ -11,8 +11,7 @@ from services.enhancer import *
 from services.measure_sharpness import *
 from services.measure_metrics import *
 from models.srcnn_model import *
-from models.srcnn_model_MoE import *
-from models.ppe_detection import *
+from models.ppe_detection_old import *
 from models.fire_detection import *
 from models.yolo_model import *
 from torchvision import transforms
@@ -66,16 +65,14 @@ class VideoEnhancementApp:
         self.my_font = ("Arial", 12, "bold")
         
         global SR_model_loaded
-        global MOE_model_loaded
         global yolo_model_loaded     
         global fire_model_loaded
         global ppe_model_loaded
 
         SR_model_loaded = load_SR_model("models\\srcnn_model.pth")
+
         yolo_model_loaded = load_yolo_model("models\\yolo_model.pt")
         self.fire_detector = FireSmokeDetector("models\\fire_model.pt")
-        MOE_model_loaded = load_MOE()
-
         if self.fire_detector:
             fire_model_loaded = True
         else:
@@ -145,12 +142,6 @@ class VideoEnhancementApp:
         self.SR_model_cb.pack(side=tk.LEFT, padx=15)
         if not SR_model_loaded:
             self.SR_model_cb.config(state=tk.DISABLED)
-
-        self.MOE_model_var = tk.BooleanVar()
-        self.MOE_model_cb = tk.Checkbutton(cb_frame1, text="SR (MOE)", variable=self.MOE_model_var, font=self.my_font, fg="dark red")
-        self.MOE_model_cb.pack(side=tk.LEFT, padx=15)
-        if not MOE_model_loaded:
-            self.MOE_model_cb.config(state=tk.DISABLED)
 
         self.color_enhancement_var = tk.BooleanVar()
         self.color_enhancement_cb = tk.Checkbutton(cb_frame1, text="SR (Auto Tone)", variable=self.color_enhancement_var, font=self.my_font, fg="dark red")
@@ -584,7 +575,6 @@ class VideoEnhancementApp:
         # Create a copy to avoid modifying the original
         enhanced = frame.copy()
         
-
         #############################
         # Frame Enhancements
         #############################
@@ -614,9 +604,6 @@ class VideoEnhancementApp:
         if self.SR_model_var.get() and SR_model_loaded:
             enhanced = apply_SR_model(enhanced)
         
-        if self.MOE_model_var.get() and MOE_model_loaded:
-            enhanced = apply_MOE_model(enhanced)
-
         # Histogram Equalization
         if self.histogram_equalization_var.get():
             enhanced = self.histogram_equalization(enhanced)       
@@ -698,7 +685,7 @@ class VideoEnhancementApp:
                 x, y = 10, 20
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 font_scale = 0.5
-                color = (255, 255, 255)
+                color = (255, 0, 0)
                 thickness = 1
                 line_height = 25  # pixels between lines
 
@@ -1011,7 +998,6 @@ class VideoEnhancementApp:
         self.brightness_slider.set(0)  # Reset brightness to default
         self.gamma_slider.set(1.0)  # Reset gamma to default
         self.SR_model_var.set(False)
-        self.MOE_model_var.set(False)
         self.object_yolo_var.set(False)
         self.fire_yolo_var.set(False)
         self.ppe_yolo_var.set(False)
